@@ -17,6 +17,11 @@ https://stackoverflow.com/q/2546276
 Usage
 =====
 
+.. code-block:: sh
+
+    pip3 install multiexit
+
+
 .. code-block:: python
 
     from time import sleep
