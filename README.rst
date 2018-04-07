@@ -18,13 +18,20 @@ registered exit functions in *LIFO* order (Last In First Out). ``multiexit``
 will only execute exit functions that are owned by the process shutting down.
 
 
-Usage
-=====
+Install
+=======
+
+``multiexit`` is available for Python 3 from PyPI_.
+
+.. _PyPI: https://pypi.python.org/pypi/multiexit/
 
 .. code-block:: sh
 
     pip3 install multiexit
 
+
+Usage
+=====
 
 .. code-block:: python
 
