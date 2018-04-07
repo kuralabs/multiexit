@@ -13,6 +13,10 @@ https://stackoverflow.com/q/2546276
 .. _atexit: https://docs.python.org/3/library/atexit.html
 .. _multiprocessing: https://docs.python.org/3/library/multiprocessing.html
 
+``multiexit`` will install a handler for the SIGTERM signal and execute the
+registered exit functions in *LIFO* order (Last In First Out). ``multiexit``
+will only execute exit functions that are owned by the process shutting down.
+
 
 Usage
 =====

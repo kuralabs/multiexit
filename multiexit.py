@@ -59,7 +59,16 @@ def _handler(signum, frame):
 
     owned = _REGISTRY.get(os.getpid())
     if owned:
-        for func in owned:
+        # Reversing the queue allows execute exit functions in LIFO order
+        # which is the order that fits most applications. The user should be
+        # able to configure this somehow someday.
+        #
+        # Maybe in install() passing an ordering function? But with functions
+        # is no very useful.
+        #
+        # Passing a weight? But then what about non-weighted function that must
+        # retain order. Food for thought.
+        for func in reversed(owned):
             func()
 
     if _MAIN_PROC == os.getpid():
@@ -77,22 +86,41 @@ def _handler(signum, frame):
 def install():
     global _MAIN_PROC
 
-    if _MAIN_PROC is None:
-        _MAIN_PROC = os.getpid()
-        log.debug('{} set as main process'.format(
-            _header(),
-            _MAIN_PROC,
-        ))
+    if _MAIN_PROC is not None:
+        raise RuntimeError(
+            'Please call install() only once in the main process. '
+            'Main process already set to process with PID {}.'.format(
+                _MAIN_PROC,
+            )
+        )
 
+    current_handler = signal.getsignal(signal.SIGTERM)
+    if current_handler != signal.SIG_DFL:
+        raise RuntimeError(
+            'multiexit doesn\'t support custom signal handlers for SIGTERM '
+            'yet. PRs welcome. Current signal handler set to: {}'.format(
+                current_handler,
+            )
+        )
+
+    _MAIN_PROC = os.getpid()
     signal.signal(signal.SIGTERM, _handler)
-    log.debug('{} installed SIGTERM signal handler'.format(
-        _header(),
-    ))
 
 
 def register(func):
     assert callable(func)
-    install()
+
+    # Check that the handler is installed
+    current_handler = signal.getsignal(signal.SIGTERM)
+    if current_handler != _handler:
+        raise RuntimeError(
+            'multiexit signal handler isn\'t installed. '
+            'Unknown signal handler {}. '
+            'Please call install() once on the maim process before starting '
+            'any subprocess.'.format(
+                current_handler,
+            )
+        )
 
     process_registry = _REGISTRY.setdefault(os.getpid(), [])
     if func not in process_registry:
@@ -107,7 +135,6 @@ def register(func):
 
 def unregister(func):
     assert callable(func)
-    install()
 
     process_registry = _REGISTRY.get(os.getpid(), None)
     if process_registry is not None:
