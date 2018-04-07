@@ -19,10 +19,54 @@ Usage
 
 .. code-block:: python
 
-   from multiexit import install, register
+    from time import sleep
+    from multiexit import install, register
 
-   # Always call install() on the main process
-   # FIXME!!
+
+    if __name__ == '__main__':
+
+        # Always call install() on the main process
+        install()
+
+        def _subproc1():
+
+            @register
+            def subproc1_clean():
+                print('Subprocess clean!')
+
+            sleep(1000)
+
+        subproc1 = Process(
+            name='SubProcess1',
+            target=_subproc1,
+        )
+        # proc.daemon = True
+        # daemon means that signals (like SIGTERM) will be propagated automatically
+        # to children. Set to false (the default), to handle the SIGTERM
+        # (process.terminate()) to the children yourself.
+        subproc1.start()
+
+        # Register a cleaner using a decorator
+        @register
+        def clean_main():
+            print('Terminating child {}'.format(
+                subproc1.pid,
+            ))
+            subproc1.terminate()
+            subproc1.join()
+            print('Child {} ended with {}'.format(
+                subproc1.pid,
+                subproc1.exitcode,
+            ))
+
+        # Wait, and then kill main process
+        for count in range(3, 0, -1):
+            print('{} ... '.format(count), end='', flush=True)
+            sleep(1 / 3)
+        print()
+
+        # Suicide
+        kill(getpid(), SIGTERM)
 
 For a more extensive example check out ``example.py``.
 

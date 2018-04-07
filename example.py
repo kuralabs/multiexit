@@ -101,7 +101,7 @@ if __name__ == '__main__':
     # (process.terminate()) to the children yourself.
     subproc1.start()
 
-    # Register a cleaner using using a decorator
+    # Register a cleaner using a decorator
     @register
     def clean_main():
         print('Terminating child {}'.format(
