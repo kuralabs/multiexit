@@ -27,7 +27,7 @@ from collections import OrderedDict
 from multiprocessing import current_process
 
 
-__version__ = '1.0.0'
+__version__ = '1.1.0'
 
 
 log = getLogger(__name__)
