@@ -122,9 +122,13 @@ if __name__ == '__main__':
     unregister(not_a_cleaner)
 
     # Wait, and then kill main process
+    sleep(1)
     for count in range(3, 0, -1):
-        print('{} ... '.format(count), end='', flush=True)
-        sleep(1 / 3)
+        print('{} '.format(count), end='', flush=True)
+        for _ in range(0, 3):
+            sleep(1 / 3)
+            print('.', end='', flush=True)
+        print(' ', end='', flush=True)
     print()
 
     # Suicide

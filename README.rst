@@ -60,10 +60,7 @@ Usage
             ))
 
         # Wait, and then kill main process
-        for count in range(3, 0, -1):
-            print('{} ... '.format(count), end='', flush=True)
-            sleep(1 / 3)
-        print()
+        sleep(3)
 
         # Suicide
         kill(getpid(), SIGTERM)
