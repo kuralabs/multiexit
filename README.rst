@@ -25,7 +25,11 @@ Usage
 .. code-block:: python
 
     from time import sleep
-    from multiexit import install, register
+    from signal import SIGTERM
+    from os import kill, getpid
+    from multiprocessing import Process
+
+    from multiexit import install, register, unregister
 
 
     if __name__ == '__main__':
