@@ -86,7 +86,18 @@ def _handler(signum, frame):
     run_exitfuncs(0)
 
 
-def install(signals=(signal.SIGTERM, )):
+def multiexit_except_hook(exctype, value, traceback):
+    """
+    Unhandled exception hook that works in a multiprocess environment.
+    """
+    log.critical(
+        'Uncaught exception',
+        exc_info=(exctype, value, traceback)
+    )
+    run_exitfuncs(1)
+
+
+def install(signals=(signal.SIGTERM, ), except_hook=True):
     global _MAIN_PROC
 
     if _MAIN_PROC is not None:
@@ -114,6 +125,11 @@ def install(signals=(signal.SIGTERM, )):
     _MAIN_PROC = os.getpid()
     for signum in signals:
         signal.signal(signum, _handler)
+
+    # Change system exception hook
+    if except_hook:
+        sys._excepthook_original = sys.excepthook
+        sys.excepthook = multiexit_except_hook
 
 
 def register(func):
