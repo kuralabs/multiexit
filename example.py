@@ -19,14 +19,31 @@ from time import sleep
 from signal import SIGTERM
 from os import getpid, kill
 from multiprocessing import Process
+from logging import StreamHandler, basicConfig, DEBUG
+
+from colorlog import ColoredFormatter
 
 from multiexit import install, register, unregister
+
+
+COLOR_FORMAT = (
+    '  {thin_white}{asctime}{reset} | '
+    '{log_color}{levelname:8}{reset} | '
+    '{thin_white}{processName}{reset} | '
+    '{log_color}{message}{reset}'
+)
 
 
 if __name__ == '__main__':
 
     # Always call install() on the main process
     install()
+
+    # Setup logging
+    formatter = ColoredFormatter(fmt=COLOR_FORMAT, style='{')
+    handler = StreamHandler()
+    handler.setFormatter(formatter)
+    basicConfig(handlers=[handler], level=DEBUG)
 
     def _subproc1():
 
