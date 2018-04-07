@@ -51,12 +51,7 @@ def _header():
     )
 
 
-def _handler(signum, frame):
-    log.debug('{} got signal {}'.format(
-        _header(),
-        signal.Signals(signum).name),
-    )
-
+def run_exitfuncs(exitcode):
     owned = _REGISTRY.get(os.getpid())
     if owned:
         # Reversing the queue allows execute exit functions in LIFO order
@@ -75,15 +70,23 @@ def _handler(signum, frame):
         log.debug('{} system exit'.format(
             _header(),
         ))
-        sys.exit(0)
+        sys.exit(exitcode)
 
     log.debug('{} subprocess exit'.format(
         _header(),
     ))
-    os._exit(0)
+    os._exit(exitcode)
 
 
-def install():
+def _handler(signum, frame):
+    log.debug('{} got signal {}'.format(
+        _header(),
+        signal.Signals(signum).name),
+    )
+    run_exitfuncs(0)
+
+
+def install(signals=(signal.SIGTERM, )):
     global _MAIN_PROC
 
     if _MAIN_PROC is not None:
@@ -94,17 +97,23 @@ def install():
             )
         )
 
-    current_handler = signal.getsignal(signal.SIGTERM)
-    if current_handler != signal.SIG_DFL:
-        raise RuntimeError(
-            'multiexit doesn\'t support custom signal handlers for SIGTERM '
-            'yet. PRs welcome. Current signal handler set to: {}'.format(
-                current_handler,
+    for signum in signals:
+        current_handler = signal.getsignal(signum)
+        if current_handler not in [
+            signal.SIG_DFL,
+            signal.SIG_IGN,
+        ]:
+            raise RuntimeError(
+                'multiexit doesn\'t support custom signal handlers for {} '
+                'yet. PRs welcome. Current signal handler set to: {}'.format(
+                    signal.Signals(signum).name,
+                    current_handler,
+                )
             )
-        )
 
     _MAIN_PROC = os.getpid()
-    signal.signal(signal.SIGTERM, _handler)
+    for signum in signals:
+        signal.signal(signum, _handler)
 
 
 def register(func):
@@ -150,6 +159,7 @@ def unregister(func):
 
 
 __all__ = [
+    'run_exitfuncs',
     'install',
     'register',
     'unregister',
