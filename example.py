@@ -96,6 +96,13 @@ if __name__ == '__main__':
 
         sleep(1000)
 
+    # Register shared exit function so all subprocess call this
+    def shared_exit():
+        print('Shared exit being called by {} ...'.format(getpid()))
+
+    register(shared_exit, shared=True)
+
+    # Start first subprocess
     subproc1 = Process(
         name='SubProcess1',
         target=_subproc1,

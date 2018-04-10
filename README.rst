@@ -6,7 +6,7 @@ A better, saner and more useful atexit_ replacement for Python 3 that supports
 multiprocessing_.
 
 Inspired by the following StackOverflow question and experience on building
-multiprocess daemons:
+multiprocessing daemons:
 
 https://stackoverflow.com/q/2546276
 
@@ -14,8 +14,11 @@ https://stackoverflow.com/q/2546276
 .. _multiprocessing: https://docs.python.org/3/library/multiprocessing.html
 
 ``multiexit`` will install a handler for the SIGTERM signal and execute the
-registered exit functions in *LIFO* order (Last In First Out). ``multiexit``
-will only execute exit functions that are owned by the process shutting down.
+registered exit functions in *LIFO* order (Last In First Out).
+
+Exit functions can be registered so that only the calling process will call
+them (the default), or as *shared* exit functions that will be called by the
+calling process and all the children subprocesses that inherit it.
 
 
 Install
@@ -30,8 +33,44 @@ Install
     pip3 install multiexit
 
 
-Usage
-=====
+API
+===
+
+On the main process, before forking or creating any subprocess,
+call ``multiexit.install``:
+
+.. code-block:: python
+
+    install(signals=(signal.SIGTERM, ), except_hook=True)
+
+:signals:
+ Signals to install handler. Usually only ``SIGTERM`` is required.
+
+:except_hook:
+ Also install a sys.excepthook_ that will call the exit functions in case of an
+ unexpected exception.
+
+.. _excepthook: https://docs.python.org/3/library/sys.html#sys.excepthook
+
+Then, for each exit function, on any subprocess, call ``multiexit.register``:
+
+.. code-block:: python
+
+    register(func, shared=False)
+
+:func:
+ Exit function to register. Any callable without arguments.
+
+:shared:
+ If ``shared``, the exit function will be called by the calling process but
+ also by all the children subprocesses that inherit it (thus the ones
+ created after registering it).
+ If ``shared`` is ``False``, the default, only the calling process will execute
+ the exit function.
+
+
+Example
+=======
 
 .. code-block:: python
 
@@ -60,6 +99,12 @@ Usage
                 print('Subprocess clean!')
 
             sleep(1000)
+
+        # Register shared exit function so all subprocess call this
+        def shared_exit():
+            print('Shared exit being called by {} ...'.format(getpid()))
+
+        register(shared_exit, shared=True)
 
         subproc1 = Process(
             name='SubProcess1',

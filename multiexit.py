@@ -35,6 +35,7 @@ log = getLogger(__name__)
 
 _MAIN_PROC = None
 _REGISTRY = OrderedDict()
+_SHARED_REGISTRY = []
 
 
 def _header():
@@ -47,11 +48,12 @@ def _header():
     return 'Process "{}" (pid: {}, path: {})'.format(
         current_process().name,
         pid,
-        ', '.join(map(str, path)),
+        ' -> '.join(map(str, path)),
     )
 
 
 def run_exitfuncs(exitcode):
+    # Run process specific exit functions
     owned = _REGISTRY.get(os.getpid())
     if owned:
         # Reversing the queue allows execute exit functions in LIFO order
@@ -66,6 +68,10 @@ def run_exitfuncs(exitcode):
         for func in reversed(owned):
             func()
 
+    # Run shared exit functions
+    for func in reversed(_SHARED_REGISTRY):
+        func()
+
     if _MAIN_PROC == os.getpid():
         log.debug('{} system exit'.format(
             _header(),
@@ -78,7 +84,7 @@ def run_exitfuncs(exitcode):
     os._exit(exitcode)
 
 
-def _handler(signum, frame):
+def handler(signum, frame):
     log.debug('{} got signal {}'.format(
         _header(),
         signal.Signals(signum).name),
@@ -124,7 +130,7 @@ def install(signals=(signal.SIGTERM, ), except_hook=True):
 
     _MAIN_PROC = os.getpid()
     for signum in signals:
-        signal.signal(signum, _handler)
+        signal.signal(signum, handler)
 
     # Change system exception hook
     if except_hook:
@@ -132,12 +138,12 @@ def install(signals=(signal.SIGTERM, ), except_hook=True):
         sys.excepthook = multiexit_except_hook
 
 
-def register(func):
+def register(func, shared=False):
     assert callable(func)
 
     # Check that the handler is installed
     current_handler = signal.getsignal(signal.SIGTERM)
-    if current_handler != _handler:
+    if current_handler != handler:
         raise RuntimeError(
             'multiexit signal handler isn\'t installed. '
             'Unknown signal handler {}. '
@@ -147,11 +153,16 @@ def register(func):
             )
         )
 
-    process_registry = _REGISTRY.setdefault(os.getpid(), [])
+    if shared:
+        process_registry = _SHARED_REGISTRY
+    else:
+        process_registry = _REGISTRY.setdefault(os.getpid(), [])
+
     if func not in process_registry:
         process_registry.append(func)
-        log.debug('{} added exit callable {}'.format(
+        log.debug('{} added {}exit callable {}'.format(
             _header(),
+            'shared ' if shared else '',
             func,
         ))
 
