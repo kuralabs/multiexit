@@ -47,10 +47,10 @@ call ``multiexit.install``:
  Signals to install handler. Usually only ``SIGTERM`` is required.
 
 :except_hook:
- Also install a sys.excepthook_ that will call the exit functions in case of an
- unexpected exception.
+ Also install a `sys.excepthook`_ that will call the exit functions in case of
+ an unexpected exception.
 
-.. _excepthook: https://docs.python.org/3/library/sys.html#sys.excepthook
+.. _`sys.excepthook`: https://docs.python.org/3/library/sys.html#sys.excepthook
 
 Then, for each exit function, on any subprocess, call ``multiexit.register``:
 
