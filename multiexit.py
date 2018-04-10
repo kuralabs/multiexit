@@ -53,6 +53,7 @@ def _header():
 
 
 def run_exitfuncs(exitcode):
+
     # Run process specific exit functions
     owned = _REGISTRY.get(os.getpid())
     if owned:
@@ -65,13 +66,28 @@ def run_exitfuncs(exitcode):
         #
         # Passing a weight? But then what about non-weighted function that must
         # retain order. Food for thought.
-        for func in reversed(owned):
-            func()
+        try:
+            for func in reversed(owned):
+                log.debug('{} calling *owned* exit function {} ...'.format(
+                    _header(),
+                    func,
+                ))
+                func()
+        except Exception as e:
+            log.exception('Exit function {} failed:'.format(func))
 
     # Run shared exit functions
-    for func in reversed(_SHARED_REGISTRY):
-        func()
+    try:
+        for func in reversed(_SHARED_REGISTRY):
+            log.debug('{} calling *shared* exit function {} ...'.format(
+                _header(),
+                func,
+            ))
+            func()
+    except Exception as e:
+        log.exception('Exit function {} failed:'.format(func))
 
+    # Do exit
     if _MAIN_PROC == os.getpid():
         log.debug('{} system exit'.format(
             _header(),
@@ -89,7 +105,7 @@ def handler(signum, frame):
         _header(),
         signal.Signals(signum).name),
     )
-    run_exitfuncs(0)
+    run_exitfuncs(signum)
 
 
 def multiexit_except_hook(exctype, value, traceback):
