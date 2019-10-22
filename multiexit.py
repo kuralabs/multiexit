@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2018 KuraLabs S.R.L
+# Copyright (C) 2018-2019 KuraLabs S.R.L
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ from collections import OrderedDict
 from multiprocessing import current_process
 
 
-__version__ = '1.4.1'
+__version__ = '1.5.0'
 
 
 log = getLogger(__name__)
@@ -73,7 +73,7 @@ def run_exitfuncs(exitcode):
                     func,
                 ))
                 func()
-        except Exception as e:
+        except Exception:
             log.exception('Exit function {} failed:'.format(func))
 
     # Run shared exit functions
@@ -84,7 +84,7 @@ def run_exitfuncs(exitcode):
                 func,
             ))
             func()
-    except Exception as e:
+    except Exception:
         log.exception('Exit function {} failed:'.format(func))
 
     # Do exit
@@ -105,6 +105,13 @@ def handler(signum, frame):
         _header(),
         signal.Signals(signum).name),
     )
+
+    # Filter SIGINT on subprocesses, so that the parent process drives the
+    # shutdown
+    if signum == signal.SIGINT and _MAIN_PROC != os.getpid():
+        log.debug('{} will ignore SIGINT'.format(_header()))
+        return
+
     run_exitfuncs(signum)
 
 
@@ -119,9 +126,22 @@ def multiexit_except_hook(exctype, value, traceback):
     run_exitfuncs(1)
 
 
-def install(signals=(signal.SIGTERM, ), except_hook=True):
+def multiexit_exit_hook():
+    """
+    Interpreter shutdown / exit hook.
+    """
+    # Make sure to the exit hook on standard exit only
+    log.info('Interpreter shutting down')
+    run_exitfuncs(0)
+
+
+def install(
+    signals=(signal.SIGTERM, signal.SIGINT),
+    except_hook=True,
+):
     global _MAIN_PROC
 
+    # Check that install ins't called twice or more
     if _MAIN_PROC is not None:
         raise RuntimeError(
             'Please call install() only once in the main process. '
@@ -130,19 +150,29 @@ def install(signals=(signal.SIGTERM, ), except_hook=True):
             )
         )
 
+    # Check signal handlers sanity
     for signum in signals:
         current_handler = signal.getsignal(signum)
-        if current_handler not in [
+
+        if all([
+            signum == signal.SIGINT,
+            current_handler == signal.default_int_handler
+        ]):
+            continue
+
+        if current_handler in [
             signal.SIG_DFL,
             signal.SIG_IGN,
         ]:
-            raise RuntimeError(
-                'multiexit doesn\'t support custom signal handlers for {} '
-                'yet. PRs welcome. Current signal handler set to: {}'.format(
-                    signal.Signals(signum).name,
-                    current_handler,
-                )
+            continue
+
+        raise RuntimeError(
+            'multiexit doesn\'t support custom signal handlers for {} '
+            'yet. PRs welcome. Current signal handler set to: {}'.format(
+                signal.Signals(signum).name,
+                current_handler,
             )
+        )
 
     _MAIN_PROC = os.getpid()
     for signum in signals:
@@ -163,7 +193,7 @@ def register(func, shared=False):
         raise RuntimeError(
             'multiexit signal handler isn\'t installed. '
             'Unknown signal handler {}. '
-            'Please call install() once on the maim process before starting '
+            'Please call install() once on the main process before starting '
             'any subprocess.'.format(
                 current_handler,
             )

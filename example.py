@@ -39,9 +39,10 @@ if __name__ == '__main__':
     # Always call install() on the main process before creating any
     # subprocess
     #
-    # This will install a required handler for SIGTERM. Subprocesses must
-    # inherit this handler. Plus it assigns a pid as the master process
-    # for exit or os._exit call.
+    # This installs a handler for SIGTERM and SIGINT. Subprocesses will
+    # inherit this handler. It also assigns the current PID as the master
+    # process, which will allow to choose between exit or os._exit calls
+    # when quitting.
     install()
 
     # Setup logging

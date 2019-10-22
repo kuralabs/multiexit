@@ -13,8 +13,8 @@ https://stackoverflow.com/q/2546276
 .. _atexit: https://docs.python.org/3/library/atexit.html
 .. _multiprocessing: https://docs.python.org/3/library/multiprocessing.html
 
-``multiexit`` will install a handler for the SIGTERM signal and execute the
-registered exit functions in *LIFO* order (Last In First Out).
+``multiexit`` will install a handler for the SIGTERM and SIGINT signals and
+execute the registered exit functions in *LIFO* order (Last In First Out).
 
 Exit functions can be registered so that only the calling process will call
 them (the default), or as *shared* exit functions that will be called by the
@@ -36,15 +36,19 @@ Install
 API
 ===
 
-On the main process, before forking or creating any subprocess,
-call ``multiexit.install``:
+On the main process, before forking or creating any subprocess, call
+``multiexit.install``:
 
 .. code-block:: python
 
-    install(signals=(signal.SIGTERM, ), except_hook=True)
+    def install(
+        signals=(signal.SIGTERM, signal.SIGINT),
+        except_hook=True,
+    )
 
 :signals:
- Signals to install handler. Usually only ``SIGTERM`` is required.
+ Signals to install handler. Usually only ``SIGTERM`` and ``SIGINT`` are
+ required.
 
 :except_hook:
  Also install a `sys.excepthook`_ that will call the exit functions in case of
@@ -87,9 +91,10 @@ Example
         # Always call install() on the main process before creating any
         # subprocess
         #
-        # This will install a required handler for SIGTERM. Subprocesses must
-        # inherit this handler. Plus it assigns a pid as the master process
-        # for exit or os._exit call.
+        # This installs a handler for SIGTERM and SIGINT. Subprocesses will
+        # inherit this handler. It also assigns the current PID as the master
+        # process, which will allow to choose between exit or os._exit calls
+        # when quitting.
         install()
 
         def _subproc1():
@@ -138,12 +143,32 @@ Example
 For a more extensive example check out ``example.py``.
 
 
+Changes
+=======
+
+1.5.0
+-----
+
+A ``SIGINT`` handler is now installed by default to handle Ctrl+C. This
+means that Python's ``signal.default_int_handler`` is overridden, thus
+Ctrl+C no longer raises ``KeyboardInterrupt``. If this behavior is
+undesired, pass ``signals=(signal.SIGTERM)`` when calling ``install()``.
+
+Ctrl+C sends ``SIGINT`` to all processes in the terminal's foreground
+process group, so in order to behave like a ``SIGTERM`` shutdown flow, which
+is sent only on the parent process, the handler will ignore ``SIGINT`` on
+the children to allow the parent to decide what to do with the subprocesses
+and their corresponding shutdown sequence.
+
+This fixes issue #3
+
+
 License
 =======
 
 ::
 
-   Copyright (C) 2018 KuraLabs S.R.L
+   Copyright (C) 2018-2019 KuraLabs S.R.L
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
